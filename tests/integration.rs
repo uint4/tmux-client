@@ -232,14 +232,14 @@ async fn handles_global_and_session_environment_entries() -> tmux_client::Result
 
 #[tokio::test]
 async fn raw_status_timeout_and_lenient_discovery_are_distinct() -> tmux_client::Result<()> {
-    let false_server = Server::builder().executable("/bin/false").build();
+    let false_server = Server::builder().executable("false").build();
     let raw = false_server
         .cmd(tmux_client::Command::new("ignored"))
         .await?;
     assert!(!raw.success());
 
     let sleeping = Server::builder()
-        .executable("/bin/sleep")
+        .executable("sleep")
         .timeout(Duration::from_millis(20))?
         .build();
     assert!(matches!(

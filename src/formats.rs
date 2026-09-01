@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 
 use crate::{Error, ReleaseVersion, Result, TmuxText, TmuxVersion};
 
-pub(crate) const FORMAT_SEPARATOR: &str = "\u{1f}";
+pub(crate) const FORMAT_SEPARATOR: &str = "\u{241e}";
 
 /// The tmux context needed to resolve a format token.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -444,12 +444,12 @@ pub(crate) fn parse_rows(
     if bytes.is_empty() {
         return Ok(Vec::new());
     }
-    let separator = FORMAT_SEPARATOR.as_bytes()[0];
+    let separator = FORMAT_SEPARATOR.as_bytes();
     bytes
         .split(|byte| *byte == b'\n')
         .filter(|line| !line.is_empty())
         .map(|line| {
-            let values = line.split(|byte| *byte == separator).collect::<Vec<_>>();
+            let values = split_fields(line, separator);
             if values.len() != fields.len() {
                 return Err(Error::Decode {
                     context: "tmux format row",
@@ -469,6 +469,21 @@ pub(crate) fn parse_rows(
         .collect()
 }
 
+fn split_fields<'a>(line: &'a [u8], separator: &[u8]) -> Vec<&'a [u8]> {
+    let mut fields = Vec::new();
+    let mut start = 0;
+    while let Some(offset) = line[start..]
+        .windows(separator.len())
+        .position(|window| window == separator)
+    {
+        let end = start + offset;
+        fields.push(&line[start..end]);
+        start = end + separator.len();
+    }
+    fields.push(&line[start..]);
+    fields
+}
+
 fn parse_number<T>(value: &TmuxText, token: &'static str) -> Result<T>
 where
     T: std::str::FromStr,
@@ -486,7 +501,10 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::{FormatScope, fields_for_listing, format_descriptor, parse_rows, render_format};
+    use super::{
+        FORMAT_SEPARATOR, FormatScope, fields_for_listing, format_descriptor, parse_rows,
+        render_format,
+    };
     use crate::{TmuxText, TmuxVersion};
 
     #[test]
@@ -506,7 +524,8 @@ mod tests {
         let fields = fields_for_listing(&[FormatScope::Session], &version);
         let fields = &fields[..2];
         assert!(render_format(fields).contains("#{session_id}"));
-        let Ok(rows) = parse_rows(b"$1\x1fname\n", fields) else {
+        let output = format!("$1{FORMAT_SEPARATOR}name\n");
+        let Ok(rows) = parse_rows(output.as_bytes(), fields) else {
             return;
         };
         assert_eq!(rows.len(), 1);
