@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install stable Rust
+        run: rustup update stable && rustup default stable
+      - name: Install tmux
+        run: sudo apt-get update && sudo apt-get install --yes tmux
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets --all-features --locked -- -D warnings
+      - run: cargo test --all-features --locked
+      - run: cargo test --doc --all-features
+      - run: cargo doc --all-features --no-deps
+
+  msrv:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust 1.85
+        run: rustup toolchain install 1.85.0 --profile minimal
+      - run: cargo +1.85.0 check --all-targets --all-features --locked
+
+  tmux-linux:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        tmux: [3.2a, 3.3a, '3.4', '3.5', '3.6', 3.7a, 3.7b, master]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install --yes bison libevent-dev libncurses-dev libutempter-dev pkg-config
+      - uses: actions/cache@v4
+        id: tmux-cache
+        with:
+          path: ~/tmux-builds/${{ matrix.tmux }}
+          key: tmux-${{ runner.os }}-${{ matrix.tmux }}
+      - name: Build tmux
+        if: steps.tmux-cache.outputs.cache-hit != 'true'
+        run: |
+          git clone --branch '${{ matrix.tmux }}' --depth 1 https://github.com/tmux/tmux.git "$RUNNER_TEMP/tmux"
+          cd "$RUNNER_TEMP/tmux"
+          sh autogen.sh
+          ./configure --prefix="$HOME/tmux-builds/${{ matrix.tmux }}"
+          make -j2
+          make install
+      - name: Test
+        env:
+          PATH: /home/runner/tmux-builds/${{ matrix.tmux }}/bin:/home/runner/.cargo/bin:/usr/local/bin:/usr/bin:/bin
+        run: tmux -V && cargo test --all-features --locked
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install tmux
+      - run: cargo test --all-features --locked

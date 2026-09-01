@@ -1,0 +1,49 @@
+[package]
+name = "tmux-client"
+version = "0.1.0-alpha.1"
+edition = "2024"
+rust-version = "1.85"
+description = "Typed asynchronous Rust client for tmux"
+license = "MIT"
+readme = "README.md"
+documentation = "https://docs.rs/tmux-client"
+keywords = ["tmux", "terminal", "multiplexer", "async", "tokio"]
+categories = ["api-bindings", "asynchronous", "os::unix-apis"]
+
+[features]
+default = ["query"]
+query = ["dep:regex"]
+test-support = ["dep:tempfile"]
+tracing = ["dep:tracing"]
+
+[dependencies]
+regex = { version = "1.12", optional = true }
+tempfile = { version = "3.20", optional = true }
+thiserror = "2.0"
+tokio = { version = "1.40", features = ["io-util", "process", "rt", "sync", "time"] }
+tracing = { version = "0.1", optional = true }
+
+[dev-dependencies]
+tempfile = "3.20"
+tokio = { version = "1.40", features = ["io-util", "macros", "process", "rt-multi-thread", "sync", "time"] }
+
+[lints.rust]
+elided_lifetimes_in_paths = "warn"
+missing_debug_implementations = "warn"
+missing_docs = "warn"
+unsafe_code = "forbid"
+unused_lifetimes = "warn"
+unused_qualifications = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+expect_used = "deny"
+missing_errors_doc = "allow"
+panic = "deny"
+struct_excessive_bools = "allow"
+unwrap_used = "deny"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
